@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">LoginDemo</string>
+    <string name="user_name">Username</string>
+    <string name="password">Passowrd</string>
+    <string name="Login_Button">Login</string>
+    <string name="SignUpRedirect">New User? SignUp</string>
+    <string name="request_service">Request Service</string>
+    <string name="category">Category</string>
+    <string name="selectImage">Upload Image</string>
+    <string name="submitRequest">Submit Request</string>
+    <string name="mychannelid">channelId</string>
+    <string name="mychannelName">channelName</string>
+    <string name="mychannelDescription">channelDescription</string>
+    <string name="error_field_required">This field is required</string>
+    <string name="error_invalid_password">This Password is too short</string>
+    <string name="error_username_alreadyexists">Username already exists</string>
+    <string name="error_email_alreadyexists">Email already exists</string>
+    <string name="error_invalid_mobile">Invalid mobile number</string>
+    <string name="error_invalid_email">Invalid email</string>
+    <string name="msg_token_fmt" translatable="false">InstanceID Token: %s</string>
+    <string name="logout">Logout</string>
+    <string name="history">Past Requests</string>
+    <string name="home">Home</string>
+    <string-array name="category_array">
+        <item>Hospital</item>
+        <item>Fire Station</item>
+        <item>Police Station</item>
+    </string-array>
+    <string name="title_activity_service_navigation">ServiceNavigation</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="nav_header_title">Android Studio</string>
+    <string name="nav_header_subtitle">android.studio@android.com</string>
+    <string name="nav_header_desc">Navigation header</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_citizen_navigation">CitizenNavigation</string>
+</resources>
