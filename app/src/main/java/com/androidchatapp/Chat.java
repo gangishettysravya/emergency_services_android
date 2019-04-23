@@ -1,7 +1,11 @@
-package com.androidchatapp;
+package com.example.logindemo;
 
-import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
+
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,28 +15,51 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import com.firebase.client.ChildEventListener;
-import com.firebase.client.DataSnapshot;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.DocumentChange;
+import com.google.firebase.firestore.EventListener;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
+public class Chat extends AppCompatActivity{
+    private static final String TAG = "Chat";
 
-public class Chat extends AppCompatActivity {
     LinearLayout layout1;
     RelativeLayout layout2;
     ImageView sendButton;
     EditText messageArea;
     ScrollView scrollView;
-    Firebase fobj1, fobj2;
+    String username;
+    String expert;
+    private static final String KEY_MESSAGE = "message";
+    private static final String KEY_USER = "user";
+    String timeStamp;
+
+    private FirebaseFirestore db;
+    private CollectionReference messageRef;
+    static int i=1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
+
+
+        SessionUtil session=new SessionUtil(getApplicationContext());
+        username=session.getUsername();
+        UserDetails.sender=username;
+        db=FirebaseFirestore.getInstance();
+        messageRef = db.collection("Chat").document(UserDetails.sender+"_"+UserDetails.receiver).collection("Message");
 
         layout1 = (LinearLayout) findViewById(R.id.layout1);
         layout2 = (RelativeLayout)findViewById(R.id.layout2);
@@ -41,57 +68,87 @@ public class Chat extends AppCompatActivity {
         scrollView = (ScrollView)findViewById(R.id.scrollView);
 
         Firebase.setAndroidContext(this);
-        fobj1 = new Firebase("https://chatapp-d1afb.firebaseio.com/messages/" + UserDetails.username + "_" + UserDetails.receiver);
-        fobj2 = new Firebase("https://chatapp-d1afb.firebaseio.com/messages/" + UserDetails.receiver + "_" + UserDetails.username);
 
         sendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String messageText = messageArea.getText().toString();
 
+
                 if(!messageText.equals("")){
-                    Map<String, String> map = new HashMap<String, String>();
-                    map.put("message", messageText);
-                    map.put("user", UserDetails.username);
-                    fobj1.push().setValue(map);
-                    fobj2.push().setValue(map);
+                    Map<String, String> hmap = new HashMap<String, String>();
+                    hmap.put("message", messageText);
+                    hmap.put("user", username);
+                    timeStamp = String.valueOf(TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()));
+                    db.collection("Chat").document(UserDetails.sender+"_"+UserDetails.receiver).collection("Message").document("msg"+timeStamp).set(hmap)
+                            .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                @Override
+                                public void onSuccess(Void aVoid) {
+                                    Toast.makeText(Chat.this, "Message sent", Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                            .addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception e) {
+                                    Toast.makeText(Chat.this, "message sending failed", Toast.LENGTH_SHORT).show();
+                                    Log.d(TAG, e.toString());
+                                }
+                            });
+                    db.collection("Chat").document(UserDetails.receiver+"_"+UserDetails.sender).collection("Message").document("msg"+timeStamp).set(hmap)
+                            .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                @Override
+                                public void onSuccess(Void aVoid) {
+                                    Toast.makeText(Chat.this, "Message received", Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                            .addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception e) {
+                                    Toast.makeText(Chat.this, "message not received", Toast.LENGTH_SHORT).show();
+                                    Log.d(TAG, e.toString());
+                                }
+                            });
+                    i++;
                     messageArea.setText("");
                 }
             }
         });
 
-        fobj1.addChildEventListener(new ChildEventListener() {
+        messageRef.addSnapshotListener(new EventListener<QuerySnapshot>() {
             @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                Map hmap = dataSnapshot.getValue(Map.class);
-                String message = hmap.get("message").toString();
-                String userName = hmap.get("user").toString();
-
-                if(userName.equals(UserDetails.username)){
-                    addMessageBox("You:\n" + message, 1);
+            public void onEvent(@Nullable QuerySnapshot snapshots,
+                                @Nullable FirebaseFirestoreException e) {
+                if (e != null) {
+                    Log.w(TAG, "listen:error", e);
+                    return;
                 }
-                else{
-                    addMessageBox(UserDetails.receiver + ":\n" + message, 2);
+
+                for (DocumentChange dc : snapshots.getDocumentChanges()) {
+                    Map hmap1=dc.getDocument().getData();
+                    Object message = hmap1.get(KEY_MESSAGE);
+                    Object userName = hmap1.get(KEY_USER);
+
+                    switch (dc.getType()) {
+                        case ADDED:
+                            Log.d(TAG, "New message: " + dc.getDocument().getData());
+
+                            if (userName.equals(UserDetails.sender))
+                            {
+                                addMessageBox("You:\n" + message, 1);
+                            }
+                            else
+                            {
+                                addMessageBox(UserDetails.receiver + ":\n" + message, 2);
+                            }
+                            break;
+                        case MODIFIED:
+                            Log.d(TAG, "Modified city: " + dc.getDocument().getData());
+                            break;
+                        case REMOVED:
+                            Log.d(TAG, "Removed city: " + dc.getDocument().getData());
+                            break;
+                    }
                 }
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
 
             }
         });
@@ -115,5 +172,6 @@ public class Chat extends AppCompatActivity {
         textView.setLayoutParams(linp2);
         layout1.addView(textView);
         scrollView.fullScroll(View.FOCUS_DOWN);
-    }
+     }
+
 }
